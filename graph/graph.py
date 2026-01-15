@@ -17,21 +17,12 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 load_dotenv()
 
-# -------------------------
-# State
-# -------------------------
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
-# -------------------------
-# Tools (SYNC)
-# -------------------------
 
-@tool
-def jarvis_mode():
-    """Activates Jarvis mode."""
-    return {"status": "Jarvis mode activated"}
+
 
 @tool
 def run_command(cmd: str):
@@ -95,7 +86,7 @@ llm_with_tools = llm.bind_tools(
         run_command,
         write_file,
         read_file,
-        jarvis_mode,
+        
     ]
 )
 
@@ -140,7 +131,7 @@ graph_builder.add_node(
         run_command,
         write_file,
         read_file,
-        jarvis_mode,
+        
     ])
 )
 
