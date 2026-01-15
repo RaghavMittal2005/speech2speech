@@ -6,11 +6,11 @@ import asyncio
 from openai.helpers import LocalAudioPlayer
 import os
 from openai import OpenAI, AsyncOpenAI
-from google import genai
 from guardrails.hub import ToxicLanguage,GuardrailsPII
 from guardrails import OnFailAction, Guard
 load_dotenv()
-
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="presidio")
 openai = AsyncOpenAI()
 
 MONGODB_URI = "mongodb://admin:admin@localhost:27017"

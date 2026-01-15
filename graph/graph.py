@@ -22,8 +22,6 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
-
-
 @tool
 def run_command(cmd: str):
     """Executes a Windows CMD command."""
@@ -75,7 +73,6 @@ def read_file(path: str):
         return {"content": f.read()}
 
 
-
 llm = init_chat_model(
     model_provider="openai",
     model="gpt-4o-mini",
@@ -86,12 +83,35 @@ llm_with_tools = llm.bind_tools(
         run_command,
         write_file,
         read_file,
-        
     ]
 )
 
 # -------------------------
-# Chatbot node (SYNC)
+# Chain of Thought node
+# -------------------------
+
+def cot(state: State):
+    """Chain of Thought reasoning before taking action."""
+    cot_prompt = SystemMessage(content="""
+Based on the user's request, think step by step about how to accomplish the task.
+
+Break down the problem into:
+1. What is the user asking for?
+2. What steps are needed to complete this task?
+3. What tools/commands will I need to use?
+4. What's the correct order of operations?
+
+Provide your reasoning clearly, then proceed to use the appropriate tools.
+""")
+
+    response = llm.invoke(
+        [cot_prompt] + state["messages"]
+    )
+
+    return {"messages": [response]}
+
+# -------------------------
+# Chatbot node
 # -------------------------
 
 def chatbot(state: State):
@@ -119,11 +139,13 @@ If a command fails, read stderr and fix it.
     return {"messages": [response]}
 
 # -------------------------
-# Graph (ASYNC-SAFE)
+# Graph with CoT
 # -------------------------
 
 graph_builder = StateGraph(State)
 
+# Add nodes
+graph_builder.add_node("cot", cot)
 graph_builder.add_node("chatbot", chatbot)
 graph_builder.add_node(
     "tools",
@@ -131,11 +153,12 @@ graph_builder.add_node(
         run_command,
         write_file,
         read_file,
-        
     ])
 )
 
-graph_builder.add_edge(START, "chatbot")
+# Define flow: START -> CoT -> Chatbot -> Tools (conditional) -> Chatbot -> END
+graph_builder.add_edge(START, "cot")
+graph_builder.add_edge("cot", "chatbot")
 graph_builder.add_conditional_edges("chatbot", tools_condition)
 graph_builder.add_edge("tools", "chatbot")
 graph_builder.add_edge("chatbot", END)
